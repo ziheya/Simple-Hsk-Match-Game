@@ -1,0 +1,390 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>HSK汉字拼音配对练习（稳定版）</title>
+  <style>
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      font-family: "Microsoft YaHei", "PingFang SC", sans-serif;
+      background: #f8f4ea;
+      color: #333;
+    }
+    .wrap {
+      max-width: 1100px;
+      margin: 0 auto;
+      padding: 24px;
+    }
+    h1 {
+      text-align: center;
+      margin-bottom: 10px;
+      font-size: 34px;
+    }
+    .sub {
+      text-align: center;
+      color: #666;
+      margin-bottom: 24px;
+    }
+    .topbar {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 12px;
+      justify-content: center;
+      align-items: center;
+      margin-bottom: 20px;
+    }
+    select, button {
+      border: none;
+      border-radius: 12px;
+      padding: 12px 16px;
+      font-size: 16px;
+    }
+    select {
+      background: #fff;
+      box-shadow: 0 2px 10px rgba(0,0,0,0.08);
+    }
+    button {
+      background: #ffcf7d;
+      cursor: pointer;
+      font-weight: 700;
+      box-shadow: 0 2px 10px rgba(0,0,0,0.08);
+    }
+    button:hover { transform: translateY(-1px); }
+    .info {
+      display: flex;
+      justify-content: center;
+      gap: 16px;
+      flex-wrap: wrap;
+      margin-bottom: 20px;
+    }
+    .card {
+      background: #fff;
+      border-radius: 16px;
+      padding: 12px 18px;
+      min-width: 150px;
+      text-align: center;
+      box-shadow: 0 2px 10px rgba(0,0,0,0.08);
+    }
+    .game {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 20px;
+    }
+    .panel {
+      background: #fff;
+      border-radius: 20px;
+      padding: 20px;
+      box-shadow: 0 2px 14px rgba(0,0,0,0.08);
+      min-height: 420px;
+    }
+    .panel h2 {
+      margin-top: 0;
+      text-align: center;
+    }
+    .grid {
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 12px;
+    }
+    .item {
+      padding: 18px 12px;
+      border-radius: 16px;
+      background: #f9f9f9;
+      border: 2px solid transparent;
+      text-align: center;
+      font-size: 24px;
+      cursor: pointer;
+      user-select: none;
+      transition: all 0.2s ease;
+    }
+    .item:hover { transform: scale(1.02); }
+    .pinyin { font-size: 22px; }
+    .selected {
+      border-color: #ffb347;
+      background: #fff3d6;
+    }
+    .matched {
+      background: #dff6df;
+      color: #3a7a3a;
+      cursor: default;
+      opacity: 0.85;
+    }
+    .wrong {
+      background: #ffe1e1;
+      border-color: #ff8e8e;
+    }
+    .result {
+      margin-top: 24px;
+      text-align: center;
+      font-size: 22px;
+      font-weight: 700;
+      min-height: 40px;
+    }
+    .tip {
+      text-align: center;
+      color: #666;
+      margin-top: 12px;
+      font-size: 14px;
+    }
+    @media (max-width: 800px) {
+      .game { grid-template-columns: 1fr; }
+      .item { font-size: 22px; }
+      .pinyin { font-size: 20px; }
+    }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <h1>HSK汉字拼音配对练习</h1>
+    <div class="sub">稳定版：切换课次自动刷新；先生成题目，再点击开始计时</div>
+
+    <div class="topbar">
+      <select id="lessonSelect"></select>
+      <button id="prepareBtn">生成题目 / 重新打乱</button>
+      <button id="startBtn">开始计时</button>
+    </div>
+
+    <div class="info">
+      <div class="card">课次：<span id="lessonName">-</span></div>
+      <div class="card">进度：<span id="progress">0 / 0</span></div>
+      <div class="card">用时：<span id="timer">0.0</span> 秒</div>
+    </div>
+
+    <div class="game">
+      <div class="panel">
+        <h2>汉字</h2>
+        <div id="hanziGrid" class="grid"></div>
+      </div>
+      <div class="panel">
+        <h2>拼音</h2>
+        <div id="pinyinGrid" class="grid"></div>
+      </div>
+    </div>
+
+    <div id="result" class="result"></div>
+    <div class="tip">玩法：先选择课次，再点“生成题目 / 重新打乱”，准备好后点击“开始计时”。</div>
+  </div>
+
+  <script>
+    const lessons = {
+      "HSK1 第1课": [
+        { hanzi: "你好", pinyin: "nǐ hǎo" },
+        { hanzi: "我", pinyin: "wǒ" },
+        { hanzi: "你", pinyin: "nǐ" },
+        { hanzi: "很", pinyin: "hěn" },
+        { hanzi: "吗", pinyin: "ma" },
+        { hanzi: "不", pinyin: "bù" }
+      ],
+      "HSK1 第2课": [
+        { hanzi: "老师", pinyin: "lǎoshī" },
+        { hanzi: "学生", pinyin: "xuésheng" },
+        { hanzi: "中国", pinyin: "Zhōngguó" },
+        { hanzi: "人", pinyin: "rén" },
+        { hanzi: "是", pinyin: "shì" },
+        { hanzi: "谁", pinyin: "shéi" }
+      ],
+      "HSK1 第3课": [
+        { hanzi: "吃", pinyin: "chī" },
+        { hanzi: "喝", pinyin: "hē" },
+        { hanzi: "买", pinyin: "mǎi" },
+        { hanzi: "看", pinyin: "kàn" },
+        { hanzi: "去", pinyin: "qù" },
+        { hanzi: "来", pinyin: "lái" }
+      ]
+    };
+
+    const lessonSelect = document.getElementById('lessonSelect');
+    const prepareBtn = document.getElementById('prepareBtn');
+    const startBtn = document.getElementById('startBtn');
+    const lessonName = document.getElementById('lessonName');
+    const progress = document.getElementById('progress');
+    const timerEl = document.getElementById('timer');
+    const hanziGrid = document.getElementById('hanziGrid');
+    const pinyinGrid = document.getElementById('pinyinGrid');
+    const resultEl = document.getElementById('result');
+
+    let currentData = [];
+    let selectedHanzi = null;
+    let selectedPinyin = null;
+    let matchedCount = 0;
+    let gameStarted = false;
+    let timer = null;
+    let startTime = 0;
+
+    function shuffle(array) {
+      const arr = array.slice();
+      for (let i = arr.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        const temp = arr[i];
+        arr[i] = arr[j];
+        arr[j] = temp;
+      }
+      return arr;
+    }
+
+    function initLessons() {
+      const names = Object.keys(lessons);
+      for (let i = 0; i < names.length; i++) {
+        const option = document.createElement('option');
+        option.value = names[i];
+        option.textContent = names[i];
+        lessonSelect.appendChild(option);
+      }
+      lessonSelect.value = names[0];
+    }
+
+    function stopTimer() {
+      if (timer) {
+        clearInterval(timer);
+        timer = null;
+      }
+    }
+
+    function updateProgress() {
+      progress.textContent = matchedCount + ' / ' + currentData.length;
+    }
+
+    function clearSelectionsOnly() {
+      selectedHanzi = null;
+      selectedPinyin = null;
+      const allItems = document.querySelectorAll('.item');
+      for (let i = 0; i < allItems.length; i++) {
+        allItems[i].classList.remove('selected');
+        allItems[i].classList.remove('wrong');
+      }
+    }
+
+    function renderGame() {
+      hanziGrid.innerHTML = '';
+      pinyinGrid.innerHTML = '';
+
+      const leftItems = shuffle(currentData);
+      const rightItems = shuffle(currentData);
+
+      for (let i = 0; i < leftItems.length; i++) {
+        const item = leftItems[i];
+        const div = document.createElement('div');
+        div.className = 'item';
+        div.textContent = item.hanzi;
+        div.onclick = function () {
+          selectHanzi(div, item);
+        };
+        hanziGrid.appendChild(div);
+      }
+
+      for (let i = 0; i < rightItems.length; i++) {
+        const item = rightItems[i];
+        const div = document.createElement('div');
+        div.className = 'item pinyin';
+        div.textContent = item.pinyin;
+        div.onclick = function () {
+          selectPinyin(div, item);
+        };
+        pinyinGrid.appendChild(div);
+      }
+    }
+
+    function prepareGame() {
+      stopTimer();
+      gameStarted = false;
+      currentData = lessons[lessonSelect.value].slice();
+      lessonName.textContent = lessonSelect.value;
+      matchedCount = 0;
+      timerEl.textContent = '0.0';
+      resultEl.textContent = '题目已生成，请准备好后点击“开始计时”。';
+      renderGame();
+      updateProgress();
+      clearSelectionsOnly();
+    }
+
+    function startGame() {
+      if (currentData.length === 0) {
+        prepareGame();
+      }
+      stopTimer();
+      gameStarted = true;
+      clearSelectionsOnly();
+      resultEl.textContent = '已开始，请进行配对。';
+      startTime = Date.now();
+      timer = setInterval(function () {
+        const elapsed = (Date.now() - startTime) / 1000;
+        timerEl.textContent = elapsed.toFixed(1);
+      }, 100);
+    }
+
+    function selectHanzi(el, item) {
+      if (!gameStarted || el.classList.contains('matched')) return;
+      const allLeft = hanziGrid.querySelectorAll('.item');
+      for (let i = 0; i < allLeft.length; i++) {
+        allLeft[i].classList.remove('selected');
+      }
+      el.classList.add('selected');
+      selectedHanzi = { el: el, item: item };
+      checkMatch();
+    }
+
+    function selectPinyin(el, item) {
+      if (!gameStarted || el.classList.contains('matched')) return;
+      const allRight = pinyinGrid.querySelectorAll('.item');
+      for (let i = 0; i < allRight.length; i++) {
+        allRight[i].classList.remove('selected');
+      }
+      el.classList.add('selected');
+      selectedPinyin = { el: el, item: item };
+      checkMatch();
+    }
+
+    function checkMatch() {
+      if (!selectedHanzi || !selectedPinyin) return;
+
+      const isCorrect = selectedHanzi.item.hanzi === selectedPinyin.item.hanzi;
+
+      if (isCorrect) {
+        selectedHanzi.el.classList.remove('selected');
+        selectedPinyin.el.classList.remove('selected');
+        selectedHanzi.el.classList.add('matched');
+        selectedPinyin.el.classList.add('matched');
+        selectedHanzi = null;
+        selectedPinyin = null;
+        matchedCount += 1;
+        updateProgress();
+
+        if (matchedCount === currentData.length) {
+          stopTimer();
+          gameStarted = false;
+          const finalTime = ((Date.now() - startTime) / 1000).toFixed(1);
+          resultEl.textContent = '恭喜你完成本轮练习！用时 ' + finalTime + ' 秒';
+        }
+      } else {
+        const wrongHanzi = selectedHanzi.el;
+        const wrongPinyin = selectedPinyin.el;
+        wrongHanzi.classList.add('wrong');
+        wrongPinyin.classList.add('wrong');
+        setTimeout(function () {
+          wrongHanzi.classList.remove('selected');
+          wrongHanzi.classList.remove('wrong');
+          wrongPinyin.classList.remove('selected');
+          wrongPinyin.classList.remove('wrong');
+        }, 500);
+        selectedHanzi = null;
+        selectedPinyin = null;
+      }
+    }
+
+    lessonSelect.onchange = function () {
+      prepareGame();
+    };
+    prepareBtn.onclick = function () {
+      prepareGame();
+    };
+    startBtn.onclick = function () {
+      startGame();
+    };
+
+    initLessons();
+    prepareGame();
+  </script>
+</body>
+</html>
